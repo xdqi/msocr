@@ -2,11 +2,7 @@
 // MS OCR APIs
 #include <cstdint>
 
-#ifdef __LP64__
 #define PTR unsigned long long
-#else
-#define PTR uint64_t
-#endif
 
 #pragma mark - OcrEngine
 // return OcrEngine
