@@ -21,13 +21,13 @@ AddSpace getAddSpaceEnd(const wchar_t *word) {
 
 std::wstring fromString(const std::string& utf8Str)
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> conv;
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
     return conv.from_bytes(utf8Str);
 }
 
 std::string toString(const std::wstring& utf16Str)
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> conv;
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
     return conv.to_bytes(utf16Str);
 }
 } // namespace <anonymous>
