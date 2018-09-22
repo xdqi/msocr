@@ -1,8 +1,12 @@
 #include "msocr.h"
+
 #include <cstdio>
 #include <string>
 #include <locale>
 #include <codecvt>
+
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 enum AddSpace {
     AddSpaceNever,
@@ -82,12 +86,33 @@ std::string DoOCR(const uint8_t *lpBitmap, int width, int height) {
     return toString(wresult);
 }
 
-void __attribute__((constructor))
-ocrInit(void)
-{
-    // folder than contains orp file name MsOcrRes.orp (case-[in]sensitive depends on filesystem and OS);
-    const wchar_t *path = L"/";
+cv::Mat DecodeImage(const uint8_t *lpImage, size_t szImage) {
+    auto input = std::vector<uint8_t>(szImage);
+    memcpy(input.data(), lpImage, szImage);
 
+    auto inputImage = cv::imdecode(input, cv::IMREAD_UNCHANGED);
+    cv::Mat outputImage;
+    if (inputImage.channels() == 4) {
+        cv::cvtColor(inputImage, outputImage, cv::COLOR_BGRA2RGBA);
+    } else if (inputImage.channels() == 3) {
+        cv::cvtColor(inputImage, outputImage, cv::COLOR_BGR2RGBA);
+    } else if (inputImage.channels() == 1) {
+        cv::cvtColor(inputImage, outputImage, cv::COLOR_GRAY2RGBA);
+    } else {
+        printf("image not supported");
+    }
+
+    return outputImage;
+}
+
+std::string DoOCR(const uint8_t *lpImage, size_t szImage) {
+    auto img = DecodeImage(lpImage, szImage);
+    return DoOCR(img.data, img.cols, img.rows);
+}
+
+void Init(const wchar_t *path)
+{
+    // path: the path of folder than contains orp file name "MsOcrRes.orp"
     globalEngine = WrapperCreateOcrEngine(path);
     WrapperSetOcrLanguage(globalEngine, MsOcrLanguageAutodetect);
     WrapperSetOcrTextOrientation(globalEngine, MsOcrTextOrientationUp);
@@ -96,14 +121,27 @@ ocrInit(void)
 void __attribute__((destructor))
 ocrDestroy(void)
 {
-    WrapperDestroyOcrEngine(globalEngine);
+    if (globalEngine) {
+        WrapperDestroyOcrEngine(globalEngine);
+    }
 }
 
 } // namespace <anonymous>
 
 extern "C" {
-    char *ocr_recognize(const uint8_t *lpBitmap, int width, int height) {
+    void ocr_init(const char *path) {
+        Init(fromString(path).c_str());
+    }
+
+    char *ocr_recognize_bitmap(const uint8_t *lpBitmap, int width, int height) {
         const auto &str = DoOCR(lpBitmap, width, height);
+        char *ret = (char *)malloc(str.size() + 1);
+        strcpy(ret, str.c_str());
+        return ret;
+    }
+
+    char *ocr_recognize_image(const uint8_t *lpImage, size_t szImage) {
+        const auto &str = DoOCR(lpImage, szImage);
         char *ret = (char *)malloc(str.size() + 1);
         strcpy(ret, str.c_str());
         return ret;
@@ -113,22 +151,3 @@ extern "C" {
         free(result);
     }
 }
-
-/*
-// example code
-int main() {
-    printf("ocr test started\n");
-
-    FILE *f = fopen("/1.bitmap", "r");
-    int width = 948;
-    int height = 326;
-    uint8_t *buf = (uint8_t*) malloc(4*width*height);
-    fread(buf, 4, width*height, f);
-    fclose(f);
-
-    DoOCR(buf, width, height);
-
-    free(buf);
-}
-*/
-
