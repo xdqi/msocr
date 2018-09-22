@@ -1,2 +1,4 @@
 *.so filter=lfs diff=lfs merge=lfs -text
 *.orp filter=lfs diff=lfs merge=lfs -text
+*.a filter=lfs diff=lfs merge=lfs -text
+node filter=lfs diff=lfs merge=lfs -text
