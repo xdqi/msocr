@@ -105,6 +105,10 @@ cv::Mat DecodeImage(const uint8_t *lpImage, size_t szImage) {
     memcpy(input.data(), lpImage, szImage);
 
     auto inputImage = cv::imdecode(input, cv::IMREAD_UNCHANGED);
+    if (inputImage.empty()) {
+        return inputImage;
+    }
+
     cv::Mat outputImage;
     if (inputImage.channels() == 4) {
         cv::cvtColor(inputImage, outputImage, cv::COLOR_BGRA2RGBA);
@@ -131,11 +135,13 @@ std::string DoBarcode(const uint8_t *lpBitmap, int width, int height) {
 
 std::string DoOCR(const uint8_t *lpImage, size_t szImage) {
     auto img = DecodeImage(lpImage, szImage);
+    if (img.empty()) return "";
     return DoOCR(img.data, img.cols, img.rows);
 }
 
 std::string DoBarcode(const uint8_t *lpImage, size_t szImage) {
     auto img = DecodeImage(lpImage, szImage);
+    if (img.empty()) return "";
     return DoBarcode(img.data, img.cols, img.rows);
 }
 
