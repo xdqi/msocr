@@ -8,6 +8,13 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <zxing/DecodeHints.h>
+#include <zxing/MultiFormatReader.h>
+#include <zxing/GenericLuminanceSource.h>
+#include <zxing/HybridBinarizer.h>
+#include <zxing/Result.h>
+
+
 enum AddSpace {
     AddSpaceNever,
     AddSpaceAlphabet,
@@ -35,7 +42,14 @@ std::string toString(const std::wstring& utf16Str)
     return conv.to_bytes(utf16Str);
 }
 
+char *toCharString(const std::string &str) {
+    char *ret = (char *)malloc(str.size() + 1);
+    strcpy(ret, str.c_str());
+    return ret;
+}
+
 PTR globalEngine = 0;
+ZXing::MultiFormatReader *globalBarcodeReader = nullptr;
 
 std::string DoOCR(const uint8_t *lpBitmap, int width, int height) {
     // buf is standard RGBA8888 format bitmap, row by row
@@ -80,7 +94,7 @@ std::string DoOCR(const uint8_t *lpBitmap, int width, int height) {
         WrapperDestroyOcrRegion(pRegion);
     }
     
-    fprintf(stderr, "OCR %p Result: %ls\n", lpBitmap, wresult.c_str());
+    //fprintf(stderr, "OCR %p Result: %ls\n", lpBitmap, wresult.c_str());
     WrapperDestroyOcrResut(pResult);
     
     return toString(wresult);
@@ -99,15 +113,30 @@ cv::Mat DecodeImage(const uint8_t *lpImage, size_t szImage) {
     } else if (inputImage.channels() == 1) {
         cv::cvtColor(inputImage, outputImage, cv::COLOR_GRAY2RGBA);
     } else {
-        printf("image not supported");
+        fprintf(stderr, "opencv: image %p not supported", lpImage);
     }
 
     return outputImage;
 }
 
+std::string DoBarcode(const uint8_t *lpBitmap, int width, int height) {
+    auto luminance = std::make_shared<ZXing::GenericLuminanceSource>(width, height, lpBitmap, width * 4, 4, 0, 1, 2);
+    ZXing::HybridBinarizer bitmap(luminance);
+
+    auto result = globalBarcodeReader->read(bitmap);
+    if (!result.isValid()) return "";
+
+    return toString(result.text());
+}
+
 std::string DoOCR(const uint8_t *lpImage, size_t szImage) {
     auto img = DecodeImage(lpImage, szImage);
     return DoOCR(img.data, img.cols, img.rows);
+}
+
+std::string DoBarcode(const uint8_t *lpImage, size_t szImage) {
+    auto img = DecodeImage(lpImage, szImage);
+    return DoBarcode(img.data, img.cols, img.rows);
 }
 
 void Init(const wchar_t *path)
@@ -116,6 +145,23 @@ void Init(const wchar_t *path)
     globalEngine = WrapperCreateOcrEngine(path);
     WrapperSetOcrLanguage(globalEngine, MsOcrLanguageAutodetect);
     WrapperSetOcrTextOrientation(globalEngine, MsOcrTextOrientationUp);
+}
+
+void __attribute__((constructor))
+barcodeInit(void)
+{
+    ZXing::DecodeHints hints;
+    hints.setShouldTryHarder(true);
+    hints.setShouldTryRotate(true);
+    globalBarcodeReader = new ZXing::MultiFormatReader(hints);
+}
+
+void __attribute__((destructor))
+barcodeDestroy(void)
+{
+    if (globalBarcodeReader) {
+        delete globalBarcodeReader;
+    }
 }
 
 void __attribute__((destructor))
@@ -135,16 +181,22 @@ extern "C" {
 
     char *ocr_recognize_bitmap(const uint8_t *lpBitmap, int width, int height) {
         const auto &str = DoOCR(lpBitmap, width, height);
-        char *ret = (char *)malloc(str.size() + 1);
-        strcpy(ret, str.c_str());
-        return ret;
+        return toCharString(str);
     }
 
     char *ocr_recognize_image(const uint8_t *lpImage, size_t szImage) {
         const auto &str = DoOCR(lpImage, szImage);
-        char *ret = (char *)malloc(str.size() + 1);
-        strcpy(ret, str.c_str());
-        return ret;
+        return toCharString(str);
+    }
+
+    char *barcode_recognize_bitmap(const uint8_t *lpBitmap, int width, int height) {
+        const auto &str = DoBarcode(lpBitmap, width, height);
+        return toCharString(str);
+    }
+
+    char *barcode_recognize_image(const uint8_t *lpImage, size_t szImage) {
+        const auto &str = DoBarcode(lpImage, szImage);
+        return toCharString(str);
     }
 
     void ocr_free(char *result) {

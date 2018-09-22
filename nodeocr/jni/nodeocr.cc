@@ -1,10 +1,11 @@
 #include <node.h>
-#include <node_buffer.h>
 
 extern "C" {
     void ocr_init(const char *path);
     char *ocr_recognize_bitmap(const uint8_t *lpBitmap, int width, int height);
     char *ocr_recognize_image(const uint8_t *lpData, size_t size);
+    char *barcode_recognize_bitmap(const uint8_t *lpBitmap, int width, int height);
+    char *barcode_recognize_image(const uint8_t *lpData, size_t size);
     void ocr_free(char *result);
 }
 
@@ -63,10 +64,16 @@ namespace nodeocr {
         int width = args[1]->NumberValue();
         int height = args[2]->NumberValue();
 
-        char *result = ocr_recognize_bitmap((const uint8_t *) contents.Data(), width, height);
+        char *ocr_result = ocr_recognize_bitmap((const uint8_t *) contents.Data(), width, height);
+        char *barcode_result = barcode_recognize_bitmap((const uint8_t *) contents.Data(), width, height);
 
-        args.GetReturnValue().Set(String::NewFromUtf8(isolate, result));
-        ocr_free(result);
+        Local<Object> obj = Object::New(isolate);
+        obj->Set(String::NewFromUtf8(isolate, "ocr"), String::NewFromUtf8(isolate, ocr_result));
+        obj->Set(String::NewFromUtf8(isolate, "barcode"), String::NewFromUtf8(isolate, barcode_result));
+
+        args.GetReturnValue().Set(obj);
+        ocr_free(ocr_result);
+        ocr_free(barcode_result);
     }
 
     void RecognizeImage(const FunctionCallbackInfo<Value>& args) {
@@ -87,9 +94,16 @@ namespace nodeocr {
         Local<Uint8Array> view = args[0].As<Uint8Array>();
         auto contents = view->Buffer()->GetContents();
 
-        char *result = ocr_recognize_image((const uint8_t *) contents.Data(), contents.ByteLength());
-        args.GetReturnValue().Set(String::NewFromUtf8(isolate, result));
-        ocr_free(result);
+        char *ocr_result = ocr_recognize_image((const uint8_t *) contents.Data(), contents.ByteLength());
+        char *barcode_result = barcode_recognize_image((const uint8_t *) contents.Data(), contents.ByteLength());
+
+        Local<Object> obj = Object::New(isolate);
+        obj->Set(String::NewFromUtf8(isolate, "ocr"), String::NewFromUtf8(isolate, ocr_result));
+        obj->Set(String::NewFromUtf8(isolate, "barcode"), String::NewFromUtf8(isolate, barcode_result));
+
+        args.GetReturnValue().Set(obj);
+        ocr_free(ocr_result);
+        ocr_free(barcode_result);
     }
 
     void init(Local<Object> exports) {
