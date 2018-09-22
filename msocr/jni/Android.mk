@@ -7,5 +7,5 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := msocr
 LOCAL_SRC_FILES := testocr.cpp
 LOCAL_CFLAGS := -fPIE
-LOCAL_LDFLAGS := -L../../mslib/${TARGET_ARCH} -lmsocr -pie
+LOCAL_LDFLAGS := -L${NDK_PROJECT_PATH}/../mslib/${TARGET_ARCH} -lmsocr -pie
 include $(BUILD_EXECUTABLE)
