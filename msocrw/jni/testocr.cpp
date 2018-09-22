@@ -30,11 +30,12 @@ std::string toString(const std::wstring& utf16Str)
     std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
     return conv.to_bytes(utf16Str);
 }
-} // namespace <anonymous>
 
-std::string DoOCR(PTR engine, const uint8_t *lpBitmap, int width, int height) {
+PTR globalEngine = 0;
+
+std::string DoOCR(const uint8_t *lpBitmap, int width, int height) {
     // buf is standard RGBA8888 format bitmap, row by row
-    PTR pResult = WrapperRecognizeImage(engine, lpBitmap, 948, 326);
+    PTR pResult = WrapperRecognizeImage(globalEngine, lpBitmap, width, height);
     std::wstring wresult;
     
     //fprintf(stderr, "region count %d\n", WrapperGetResultRegionCount(pResult));
@@ -81,15 +82,42 @@ std::string DoOCR(PTR engine, const uint8_t *lpBitmap, int width, int height) {
     return toString(wresult);
 }
 
-int main() {
-    printf("ocr test started\n");
-
+void __attribute__((constructor))
+ocrInit(void)
+{
     // folder than contains orp file name MsOcrRes.orp (case-[in]sensitive depends on filesystem and OS);
     const wchar_t *path = L"/";
 
-    auto pEngine = WrapperCreateOcrEngine(path);
-    WrapperSetOcrLanguage(pEngine, MsOcrLanguageAutodetect);
-    WrapperSetOcrTextOrientation(pEngine, MsOcrTextOrientationUp);
+    globalEngine = WrapperCreateOcrEngine(path);
+    WrapperSetOcrLanguage(globalEngine, MsOcrLanguageAutodetect);
+    WrapperSetOcrTextOrientation(globalEngine, MsOcrTextOrientationUp);
+}
+
+void __attribute__((destructor))
+ocrDestroy(void)
+{
+    WrapperDestroyOcrEngine(globalEngine);
+}
+
+} // namespace <anonymous>
+
+extern "C" {
+    char *ocr_recognize(const uint8_t *lpBitmap, int width, int height) {
+        const auto &str = DoOCR(lpBitmap, width, height);
+        char *ret = (char *)malloc(str.size() + 1);
+        strcpy(ret, str.c_str());
+        return ret;
+    }
+
+    void ocr_free(char *result) {
+        free(result);
+    }
+}
+
+/*
+// example code
+int main() {
+    printf("ocr test started\n");
 
     FILE *f = fopen("/1.bitmap", "r");
     int width = 948;
@@ -98,9 +126,9 @@ int main() {
     fread(buf, 4, width*height, f);
     fclose(f);
 
-    DoOCR(pEngine, buf, width, height);
+    DoOCR(buf, width, height);
 
     free(buf);
-    WrapperDestroyOcrEngine(pEngine);
 }
+*/
 
