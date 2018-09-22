@@ -25,7 +25,7 @@
  - create /proc, /sys, /dev, ...
 - Copy this directory after compiling to /ocr under rootfs
 - Enter rootfs
-- `systemd-nspawn`
+- `systemd-nspawn` (debian package in `systemd-container`)
 - `cd /ocr`
 - `LD_PRELOAD=anlog/libs/x86_64/libanlog.so LD_LIBRARY_PATH=mslib/x86_64:msocrw/libs/x86_64:opencv/sdk/native/libs/x86_64:zxing/lib/x86_64 node/x86_64/bin/node`
 
