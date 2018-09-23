@@ -157,6 +157,7 @@ void __attribute__((constructor))
 barcodeInit(void)
 {
     ZXing::DecodeHints hints;
+    hints.setPossibleFormats({ZXing::BarcodeFormat::QR_CODE});
     hints.setShouldTryHarder(true);
     hints.setShouldTryRotate(true);
     globalBarcodeReader = new ZXing::MultiFormatReader(hints);
