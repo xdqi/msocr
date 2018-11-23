@@ -101,26 +101,29 @@ std::string DoOCR(const uint8_t *lpBitmap, int width, int height) {
 }
 
 cv::Mat DecodeImage(const uint8_t *lpImage, size_t szImage) {
-    auto input = std::vector<uint8_t>(szImage);
-    memcpy(input.data(), lpImage, szImage);
+    try {
+        auto input = std::vector<uint8_t>(szImage);
+        memcpy(input.data(), lpImage, szImage);
 
-    auto inputImage = cv::imdecode(input, cv::IMREAD_UNCHANGED);
-    if (inputImage.empty()) {
-        return inputImage;
+        auto inputImage = cv::imdecode(input, cv::IMREAD_UNCHANGED);
+        if (inputImage.empty()) {
+            return inputImage;
+        }
+
+        cv::Mat outputImage;
+        if (inputImage.channels() == 4) {
+            cv::cvtColor(inputImage, outputImage, cv::COLOR_BGRA2RGBA);
+        } else if (inputImage.channels() == 3) {
+            cv::cvtColor(inputImage, outputImage, cv::COLOR_BGR2RGBA);
+        } else if (inputImage.channels() == 1) {
+            cv::cvtColor(inputImage, outputImage, cv::COLOR_GRAY2RGBA);
+        } else {
+            fprintf(stderr, "opencv: image %p not supported", lpImage);
+        }
+        return outputImage;
+    } catch (std::exception &e) {
+        return cv::Mat();
     }
-
-    cv::Mat outputImage;
-    if (inputImage.channels() == 4) {
-        cv::cvtColor(inputImage, outputImage, cv::COLOR_BGRA2RGBA);
-    } else if (inputImage.channels() == 3) {
-        cv::cvtColor(inputImage, outputImage, cv::COLOR_BGR2RGBA);
-    } else if (inputImage.channels() == 1) {
-        cv::cvtColor(inputImage, outputImage, cv::COLOR_GRAY2RGBA);
-    } else {
-        fprintf(stderr, "opencv: image %p not supported", lpImage);
-    }
-
-    return outputImage;
 }
 
 std::string DoBarcode(const uint8_t *lpBitmap, int width, int height) {
